@@ -5,17 +5,27 @@ import requests
 class LibraryAPI:
     URL = "https://openlibrary.org"
 
-    def __init__(self, in_file="book_price.csv"):
+    def __init__(self, in_file="input/book_price.csv"):
         self.__in_file = in_file
         self.__book = self.URL + "/works"
         self.__subjects = self.URL + "/subjects"
         self.__author = self.URL + "/authors"
         self.__book_prices = self.load_prices()
 
+    def get_book(self, book_id):
+        book_url = f"{self.__book}{book_id}.json"
+        response = requests.get(book_url)
+        return response.json()
+
+    def get_author(self, author_id):
+        author_url = f"{self.__author}{author_id}.json"
+        response = requests.get(author_url)
+        return response.json()
+
     def get_url_category_list(self, category, limit=12, offset=0):
         return self.__subjects + f"/{category}.json?limit={limit}&offset={offset}"
 
-    def export_all_books_by_category(self, category, csv_writer, offset=0, chunk=2, max_rows=2):
+    def export_all_books_by_category(self, category, csv_writer, offset=0, chunk=40, max_rows=40):
         url = self.get_url_category_list(category, chunk, offset)
         response = requests.get(url)
         book_details = self.get_books(response.json())
@@ -46,7 +56,7 @@ class LibraryAPI:
         response = requests.get(book_url)
         raw_id = book_id.split("/")[-1]
         book_detail.append(raw_id)
-        book_detail.append(response.json().get("title"))
+        book_detail.append(response.json().get("title", "title"))
         book_detail.append(self.get_category(response.json()))
         book_detail.append(self.get_authors(response.json().get("authors")))
         book_detail.append(self.__book_prices.get(raw_id, "price"))
@@ -56,7 +66,7 @@ class LibraryAPI:
     def get_authors(self, authors_response):
         names = []
         if not isinstance(authors_response, list):
-            return ""
+            return "authors"
         for author in authors_response:
             author_id = (author.get("author")).get("key")
             author_url = f"{self.URL}{author_id}.json"
@@ -82,6 +92,8 @@ class LibraryAPI:
             if excerpts is None:
                 return ""
             description = ";".join([(excerpt.get("excerpt")).get("value") for excerpt in excerpts])
+        else:
+            description = description.get("value", "")
         return description
 
     @staticmethod
@@ -89,6 +101,5 @@ class LibraryAPI:
         subjects = response.get("subjects", None)
         if subjects:
             return ";".join([s for s in subjects])
-
-        return ""
+        return "category"
 
